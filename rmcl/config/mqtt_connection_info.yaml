@@ -1,0 +1,8 @@
+/rmcl_server:
+  ros__parameters:
+    broker_address: 'localhost'
+    broker_port: 1883
+    client_name: ''
+    client_keep_alive: 60
+    user_name: 'wavem'
+    user_password: '1234'
