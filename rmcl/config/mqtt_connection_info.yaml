@@ -1,4 +1,4 @@
-/rmcl_server:
+/rmcl_bridge:
   ros__parameters:
     broker_address: 'localhost'
     broker_port: 1883

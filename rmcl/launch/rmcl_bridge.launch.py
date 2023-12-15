@@ -8,7 +8,7 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     package_name: str = 'rmcl'
-    executable_name: str = 'rmcl_server'
+    executable_name: str = 'rmcl_bridge'
     parameter: str = os.path.join(get_package_share_directory(package_name=package_name), 'config', 'mqtt_connection_info.yaml')
 
     rmde_executor_node = Node(

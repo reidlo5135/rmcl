@@ -4,12 +4,12 @@ from glob import glob
 
 package_name: str = 'rmcl'
 mqtt_package_name: str = package_name + '.mqtt'
-node_package_name: str = package_name + '.node'
+ros_package_name: str = package_name + '.ros'
 
 packages: list = [
     package_name,
     mqtt_package_name,
-    node_package_name
+    ros_package_name
 ]
 
 setup(
@@ -31,7 +31,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'rmcl_server = rmcl.main:main'
+            'rmcl_bridge = rmcl.bridge:main'
         ],
     },
 )
