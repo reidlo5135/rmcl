@@ -17,4 +17,12 @@ def lookup_ros_message(node: Node, module_name: str, module_class_name: str) -> 
 
     return message_object
 
+def import_module(node: Node, ros_message_type_split: list) -> Any:
+    log: RcutilsLogger = node.get_logger()
+    
+    ros_message_package_moudle: Any = importlib.import_module(f'{ros_message_type_split[0]}.{ros_message_type_split[1]}')
+    log.info(f'import_module : {ros_message_package_moudle}')
+        
+    return ros_message_package_moudle
+
 __all__ = ['rmcl_ros_utils']

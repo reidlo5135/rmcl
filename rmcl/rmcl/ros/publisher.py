@@ -1,6 +1,5 @@
 import json
 import paho.mqtt.client as mqtt
-import importlib
 
 from rclpy.node import Node
 from rclpy.impl.rcutils_logger import RcutilsLogger
@@ -9,16 +8,16 @@ from rclpy.qos import qos_profile_system_default
 from rclpy import publisher
 from rosbridge_library.internal import message_conversion
 
-from typing import Final
 from typing import Dict
 from typing import Any
 
 from ..mqtt import mqtt_client
+
 from .utils import lookup_ros_message
+from .utils import import_module
 
-
-DOMAIN_NAME: Final = 'net/wavem/robotics'
-MQTT_ROS_TOPIC_QOS: Final = 0
+from .qos import MQTT_DOMAIN_NAME
+from .qos import MQTT_SUBSCRIPTION_QOS
 
 
 class Publisher():
@@ -28,19 +27,13 @@ class Publisher():
         self.__mqtt_client: mqtt_client.Client = _mqtt_client
         self.__log: RcutilsLogger = self.__node.get_logger()
         
-        self.__mqtt_ros_register_publisher_topic: str = f'{DOMAIN_NAME}/rt/register/publisher'
-        self.__mqtt_ros_publisher_publish_topic_format: str = f'{DOMAIN_NAME}/rt/publish'
+        self.__mqtt_ros_register_publisher_topic: str = f'{MQTT_DOMAIN_NAME}/rt/register/publisher'
+        self.__mqtt_ros_publisher_publish_topic_format: str = f'{MQTT_DOMAIN_NAME}/rt/publish'
         self.__ros_publisher_dict: dict = {}
     
     def wait_for_reception(self) -> None:
-        self.__mqtt_client.subscribe(topic=self.__mqtt_ros_register_publisher_topic, qos=MQTT_ROS_TOPIC_QOS)
+        self.__mqtt_client.subscribe(topic=self.__mqtt_ros_register_publisher_topic, qos=MQTT_SUBSCRIPTION_QOS)
         self.__mqtt_client.client.message_callback_add(sub=self.__mqtt_ros_register_publisher_topic, callback=self.__register_ros_publisher)
-    
-    def import_module(self, ros_message_type_split: list) -> Any:
-        ros_message_package_moudle: Any = importlib.import_module(f'{ros_message_type_split[0]}.{ros_message_type_split[1]}')
-        self.__log.info(f'import_module : {ros_message_package_moudle}')
-        
-        return ros_message_package_moudle
     
     def __register_ros_publisher(self, mqtt_client: mqtt.Client, mqtt_user_data: Dict, mqtt_message: mqtt.MQTTMessage) -> None:
         try:
@@ -58,38 +51,38 @@ class Publisher():
             ros_message_type_split: list = ros_message_type.split('.')
             self.__log.info(f'Register Publisher ros_message_type_split : {ros_message_type_split}')
             
-            ros_message_package_module: Any = self.import_module(ros_message_type_split=ros_message_type_split)
-            ros_message_class: Any = getattr(ros_message_package_module, f'{ros_message_type_split[2]}')
+            ros_message_module_name: str = f'{ros_message_type_split[0]}.{ros_message_type_split[1]}'
+            ros_message_class_name: str = f'{ros_message_type_split[2]}'
+
+            ros_message_package_module: Any = import_module(node=self.__node, ros_message_type_split=ros_message_type_split)
+            ros_message_class: Any = getattr(ros_message_package_module, ros_message_class_name)
             self.__log.info(f'Register Publisher ros_message_obj : {ros_message_class}')
 
             ros_cb_group: MutuallyExclusiveCallbackGroup = MutuallyExclusiveCallbackGroup()
             ros_created_publisher: publisher.Publisher = self.__node.create_publisher(msg_type=ros_message_class, topic=ros_topic, qos_profile=qos_profile_system_default, callback_group=ros_cb_group)
             self.__log.info(f'Register Publisher ros_created_publisher : {ros_created_publisher.topic_name}')
+            
+            ros_message_obj: Any = lookup_ros_message(node=self.__node, module_name=ros_message_module_name, module_class_name=ros_message_class_name)
 
             ros_publisher_dict: dict = {
-                'message_obj': lookup_ros_message(node=self.__node, module_name=f'{ros_message_type_split[0]}.{ros_message_type_split[1]}', module_class_name=f'{ros_message_type_split[2]}'),
+                'message_obj': ros_message_obj,
                 'publisher': ros_created_publisher
             }
             self.__log.info(f'Register Publisher ros_publisher_dict : {ros_publisher_dict}')
 
             self.__ros_publisher_dict[ros_topic] = ros_publisher_dict
-            self.__log.info(f'Register Publisher self.__mqtt_ros_publisher_dict : {self.__ros_publisher_dict}')
+            self.__log.info(f'Register Publisher self.__ros_publisher_dict : {self.__ros_publisher_dict}')
 
             ros_create_publisher_mqtt_topic: str = f'{self.__mqtt_ros_publisher_publish_topic_format}/{ros_topic}'
 
-            self.__mqtt_client.subscribe(topic=ros_create_publisher_mqtt_topic, qos=MQTT_ROS_TOPIC_QOS)
+            self.__mqtt_client.subscribe(topic=ros_create_publisher_mqtt_topic, qos=MQTT_SUBSCRIPTION_QOS)
             self.__mqtt_client.client.message_callback_add(sub=ros_create_publisher_mqtt_topic, callback=self.__ros_publisher_publish)
         except KeyError as ke:
-            self.__log.error(
-                f'Register Publisher Invalid JSON Key in MQTT {mqtt_topic} subscription callback: {ke}')
-
+            self.__log.error(f'Register Publisher Invalid JSON Key in MQTT {mqtt_topic} subscription callback: {ke}')
         except json.JSONDecodeError as jde:
-            self.__log.error(
-                f'Register Publisher Invalid JSON format in MQTT {mqtt_topic} subscription callback: {jde.msg}')
-
+            self.__log.error(f'Register Publisher Invalid JSON format in MQTT {mqtt_topic} subscription callback: {jde.msg}')
         except Exception as e:
-            self.__log.error(
-                f'Register Publisher Exception in MQTT {mqtt_topic} subscription callback: {e}')
+            self.__log.error(f'Register Publisher Exception in MQTT {mqtt_topic} subscription callback: {e}')
             raise
 
     def __ros_publisher_publish(self, mqtt_client: mqtt.Client, mqtt_user_data: Dict, mqtt_message: mqtt.MQTTMessage) -> None:
@@ -111,14 +104,9 @@ class Publisher():
             ros_publisher: publisher.Publisher = ros_publisher_dict['publisher']
             ros_publisher.publish(ros_message)
         except KeyError as ke:
-            self.__log.error(
-                f'ROS Publisher Publish Invalid JSON Key in MQTT {mqtt_topic} subscription callback: {ke}')
-
+            self.__log.error(f'ROS Publisher Publish Invalid JSON Key in MQTT {mqtt_topic} subscription callback: {ke}')
         except json.JSONDecodeError as jde:
-            self.__log.error(
-                f'ROS Publisher Publish Invalid JSON format in MQTT {mqtt_topic} subscription callback: {jde.msg}')
-
+            self.__log.error(f'ROS Publisher Publish Invalid JSON format in MQTT {mqtt_topic} subscription callback: {jde.msg}')
         except Exception as e:
-            self.__log.error(
-                f'ROS Publisher Publish Exception in MQTT {mqtt_topic} subscription callback: {e}')
+            self.__log.error(f'ROS Publisher Publish Exception in MQTT {mqtt_topic} subscription callback: {e}')
             raise
