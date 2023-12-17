@@ -6,12 +6,10 @@ from rclpy.impl.rcutils_logger import RcutilsLogger
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy import client
 from rclpy.qos import qos_profile_services_default
+from rclpy.task import Future
+
 from rosbridge_library.internal import message_conversion
-from rosbridge_library.internal import services
-from rosbridge_library.internal.ros_loader import (
-    get_service_class,
-    get_service_request_instance
-)
+from rosbridge_library.internal.ros_loader import get_service_class
 
 from typing import Dict
 from typing import Any
@@ -35,7 +33,9 @@ class Client():
         self.__log: RcutilsLogger = self.__node.get_logger()
         
         self.__mqtt_ros_register_client_topic: str = f'{MQTT_DOMAIN_NAME}/rs/register/client'
-        self.__mqtt_ros_client_request_topic_format: str = f'{MQTT_DOMAIN_NAME}/rs/client'
+        self.__mqtt_ros_client_request_topic_format: str = f'{MQTT_DOMAIN_NAME}/rs/request'
+        self.__mqtt_ros_client_response_topic_format: str = f'{MQTT_DOMAIN_NAME}/rs/response'
+        
         self.__ros_client_dict: dict = {}
 
     def wait_for_reception(self) -> None:
@@ -104,23 +104,22 @@ class Client():
             
             ros_client_dict: dict = self.__ros_client_dict[ros_service_name]
             self.__log.info(f'ROS Client Request ros_client_dict : {ros_client_dict}')
-
-            # services.call_service(node_handle=self.__node, service=ros_service_name)
             
             ros_message_obj: Any = ros_client_dict['message_obj']
             self.__log.info(f'ROS Client Request ros_message_obj : {ros_message_obj}')
 
-            service_names_and_types: dict = dict(self.__node.get_service_names_and_types())
-            service_type = service_names_and_types['/' + ros_service_name]
-            service_type = service_type[0]
-            self.__log.info(f'ROS Client Request service_names_and_types : {service_names_and_types}')
-            self.__log.info(f'ROS Client Request service_type : {service_type}')
+            ros_service_names_and_types: dict = dict(self.__node.get_service_names_and_types())
+            ros_service_type: str = ros_service_names_and_types['/' + ros_service_name]
+            ros_service_type: str = ros_service_type[0]
+            
+            self.__log.info(f'ROS Client Request service_names_and_types : {ros_service_names_and_types}')
+            self.__log.info(f'ROS Client Request service_type : {ros_service_type}')
 
-            ros_message: Any = get_service_class(typestring=service_type)
+            ros_message: Any = get_service_class(typestring=ros_service_type)
             self.__log.info(f'ROS Client Request ros_message : {ros_message}')
 
-            ros_message_request: Any = ros_message.Request()
-            self.__log.info(f'ROS Client Request ros_message_request : {ros_message_request}')
+            ros_request_message: Any = message_conversion.populate_instance(mqtt_json, ros_message.Request())
+            self.__log.info(f'ROS Client Request ros_message_request : {ros_request_message}')
 
             ros_client: client.Client = ros_client_dict['client']
 
@@ -131,7 +130,22 @@ class Client():
                 self.__log.error(f'ROS Client Request ros_service is not ready... aborting')
                 return
             else:
-                ros_client.call_async(ros_message_request)                
+                ros_client_request_future: Future = ros_client.call_async(ros_request_message)
+                self.__log.info(f'ROS Client Request ros_client_request_future : {ros_client_request_future}')
+                
+                ros_client_request_future_done: bool = ros_client_request_future.done()
+                self.__log.info(f'ROS Client Request ros_client_request_future_done : {ros_client_request_future_done}')
+                
+                if ros_client_request_future_done:
+                    ros_client_request_future_result: Any = ros_client_request_future.result()
+                    self.__log.info(f'ROS Client Request ros_client_request_future_result : {ros_client_request_future_result}')
+                    
+                    ros_client_request_future_result_json: Any = json.dumps(message_conversion.extract_values(ros_client_request_future_result))
+                    mqtt_response_topic: str = f'{self.__mqtt_ros_client_response_topic_format}/{ros_service_name}'
+                    self.__mqtt_client.publish(topic=mqtt_response_topic, payload=ros_client_request_future_result_json, qos=MQTT_PUBLISHER_QOS)
+                else:
+                    self.__log.error(f'ROS Client Request has been failed... aborting')
+                    return
         except KeyError as ke:
             self.__log.error(f'ROS Client Request Invalid JSON Key in MQTT {mqtt_topic} subscription callback: {ke}')
         except json.JSONDecodeError as jde:
