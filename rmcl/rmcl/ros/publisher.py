@@ -73,10 +73,10 @@ class Publisher():
             self.__ros_publisher_dict[ros_topic] = ros_publisher_dict
             self.__log.info(f'Register Publisher self.__ros_publisher_dict : {self.__ros_publisher_dict}')
 
-            ros_create_publisher_mqtt_topic: str = f'{self.__mqtt_ros_publisher_publish_topic_format}/{ros_topic}'
+            ros_publisher_publish_mqtt_topic: str = f'{self.__mqtt_ros_publisher_publish_topic_format}/{ros_topic}'
 
-            self.__mqtt_client.subscribe(topic=ros_create_publisher_mqtt_topic, qos=MQTT_SUBSCRIPTION_QOS)
-            self.__mqtt_client.client.message_callback_add(sub=ros_create_publisher_mqtt_topic, callback=self.__ros_publisher_publish)
+            self.__mqtt_client.subscribe(topic=ros_publisher_publish_mqtt_topic, qos=MQTT_SUBSCRIPTION_QOS)
+            self.__mqtt_client.client.message_callback_add(sub=ros_publisher_publish_mqtt_topic, callback=self.__ros_publisher_publish)
         except KeyError as ke:
             self.__log.error(f'Register Publisher Invalid JSON Key in MQTT {mqtt_topic} subscription callback: {ke}')
         except json.JSONDecodeError as jde:
@@ -110,3 +110,6 @@ class Publisher():
         except Exception as e:
             self.__log.error(f'ROS Publisher Publish Exception in MQTT {mqtt_topic} subscription callback: {e}')
             raise
+
+
+__all__ = ['rmcl_ros_publisher']

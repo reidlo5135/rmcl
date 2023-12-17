@@ -14,6 +14,7 @@ from .mqtt.domain import MqttConnectionInfo
 
 from .ros.publisher import Publisher
 from .ros.subscription import Subscription
+from .ros.client import Client
 
 PARAM_MQTT_BROKER_ADDRESS: Final = 'broker_address'
 PARAM_MQTT_BROKER_PORT: Final = 'broker_port'
@@ -57,12 +58,8 @@ class Bridge(Node):
         subscription: Subscription = Subscription(_node=self, _mqtt_client=self.mqtt_client)
         subscription.wait_for_reception()
 
-        self.__mqtt_ros_register_subscription_topic: str = f'{DOMAIN_NAME}/rt/register/subscription'
-        self.__mqtt_ros_register_topics_qos: int = 0
-
-        self.__mqtt_ros_register_service_client_topic: str = f'{DOMAIN_NAME}/rs/register/service/client'
-        self.__mqtt_ros_register_service_server_topic: str = f'{DOMAIN_NAME}/rs/register/service/server'
-        self.__mqtt_ros_register_services_qos: int = 0
+        client: Client = Client(_node=self, _mqtt_client=self.mqtt_client)
+        client.wait_for_reception()
 
     def __declare_parameters(self) -> None:
         self.declare_parameter(name=PARAM_MQTT_BROKER_ADDRESS, value=Parameter.Type.STRING)
