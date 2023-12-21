@@ -1,7 +1,7 @@
 import time
 import rclpy
+import rclpy.node
 
-from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.exceptions import ROSInterruptException
 from rclpy.parameter import Parameter
@@ -12,6 +12,7 @@ from typing import Final
 from .mqtt import mqtt_client
 from .mqtt.domain import MqttConnectionInfo
 
+from .ros.node import Node
 from .ros.publisher import Publisher
 from .ros.subscription import Subscription
 from .ros.client import Client
@@ -29,7 +30,7 @@ RCLPY_NODE_NAME: Final = 'rmcl_server'
 DOMAIN_NAME: Final = 'net/wavem/robotics'
 
 
-class Bridge(Node):
+class Bridge(rclpy.node.Node):
 
     def __init__(self) -> None:
         super().__init__(RCLPY_NODE_NAME)
@@ -51,6 +52,10 @@ class Bridge(Node):
                 self.__log.error(f'MQTT Broker is not opened yet.. retrying [{str(retries)}]')
                 time.sleep(MQTT_RETRY_INTERVAL)
                 retries += 1
+        
+        
+        node: Node = Node(_node=self, _mqtt_client=self.mqtt_client)
+        node.wait_for_reception()
         
         publisher: Publisher = Publisher(_node=self, _mqtt_client=self.mqtt_client)
         publisher.wait_for_reception()
@@ -92,7 +97,7 @@ def main(args=None) -> None:
     rclpy.init(args=args)
 
     try:
-        node: Node = Bridge()
+        node: rclpy.node.Node = Bridge()
         node_name: str = node.get_name()
         multi_threaded_executor: MultiThreadedExecutor = MultiThreadedExecutor()
         multi_threaded_executor.add_node(node=node)

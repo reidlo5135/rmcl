@@ -48,7 +48,7 @@ class Publisher():
             ros_message_type: str = mqtt_json['message_type']
             ros_qos: int = mqtt_json['qos']
 
-            ros_message_type_split: list = ros_message_type.split('.')
+            ros_message_type_split: list = ros_message_type.split('/')
             self.__log.info(f'Register Publisher ros_message_type_split : {ros_message_type_split}')
             
             ros_message_module_name: str = f'{ros_message_type_split[0]}.{ros_message_type_split[1]}'

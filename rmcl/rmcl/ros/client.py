@@ -55,7 +55,7 @@ class Client():
             ros_service_type: str = mqtt_json['service_type']
             ros_qos: int = mqtt_json['qos']
 
-            ros_message_type_split: list = ros_service_type.split('.')
+            ros_message_type_split: list = ros_service_type.split('/')
             self.__log.info(f'Register Client ros_message_type_split : {ros_message_type_split}')
             
             ros_message_module_name: str = f'{ros_message_type_split[0]}.{ros_message_type_split[1]}'
