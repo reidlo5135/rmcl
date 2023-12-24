@@ -16,6 +16,7 @@ from .ros.node import Node
 from .ros.publisher import Publisher
 from .ros.subscription import Subscription
 from .ros.client import Client
+from .ros.service import Service
 
 PARAM_MQTT_BROKER_ADDRESS: Final = 'broker_address'
 PARAM_MQTT_BROKER_PORT: Final = 'broker_port'
@@ -65,6 +66,9 @@ class Bridge(rclpy.node.Node):
 
         client: Client = Client(_node=self, _mqtt_client=self.mqtt_client)
         client.wait_for_reception()
+
+        service: Service = Service(_node=self, _mqtt_client=self.mqtt_client)
+        service.wait_for_reception()
 
     def __declare_parameters(self) -> None:
         self.declare_parameter(name=PARAM_MQTT_BROKER_ADDRESS, value=Parameter.Type.STRING)

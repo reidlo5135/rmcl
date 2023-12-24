@@ -33,8 +33,8 @@ class Client():
         self.__log: RcutilsLogger = self.__node.get_logger()
         
         self.__mqtt_ros_register_client_topic: str = f'{MQTT_DOMAIN_NAME}/rs/register/client'
-        self.__mqtt_ros_client_request_topic_format: str = f'{MQTT_DOMAIN_NAME}/rs/request'
-        self.__mqtt_ros_client_response_topic_format: str = f'{MQTT_DOMAIN_NAME}/rs/response'
+        self.__mqtt_ros_client_request_topic_format: str = f'{MQTT_DOMAIN_NAME}/rs/client/request'
+        self.__mqtt_ros_client_response_topic_format: str = f'{MQTT_DOMAIN_NAME}/rs/client/response'
         
         self.__ros_client_dict: dict = {}
 
